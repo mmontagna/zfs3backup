@@ -1,7 +1,7 @@
 # pylint: disable=redefined-outer-name,protected-access
 import pytest
 
-from z3.ssh_sync import snapshots_to_send, sync_snapshots
+from zfs3backup.ssh_sync import snapshots_to_send, sync_snapshots
 
 
 ALL = ['S_0', 'S_1', 'S_2', 'S_3', 'S_4']

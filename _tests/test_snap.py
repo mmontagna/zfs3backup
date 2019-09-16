@@ -10,8 +10,8 @@ import os.path
 import boto
 import pytest
 
-from z3.config import get_config
-from z3.snap import (list_snapshots, S3SnapshotManager, ZFSSnapshotManager,
+from zfs3backup.config import get_config
+from zfs3backup.snap import (list_snapshots, S3SnapshotManager, ZFSSnapshotManager,
                      PairManager, CommandExecutor, IntegrityError, SoftError,
                      _humanize, handle_soft_errors)
 
@@ -403,7 +403,7 @@ def test_restore_full(s3_manager):
     fake_cmd = FakeCommandExecutor()
     pair_manager = PairManager(s3_manager, zfs_manager, command_executor=fake_cmd)
     pair_manager.restore('pool/fs@snap_1_f')
-    expected = "z3_get {}pool/fs@snap_1_f | pigz -d | zfs recv pool/fs@snap_1_f".format(
+    expected = "zfs3backup_get {}pool/fs@snap_1_f | pigz -d | zfs recv pool/fs@snap_1_f".format(
         FakeBucket.rand_prefix)
     assert fake_cmd._called_commands == [expected]
 
@@ -417,9 +417,9 @@ def test_restore_incremental_empty_dataset(s3_manager):
     pair_manager.restore('pool/fs@snap_3')  # ask for an incremental snapshot
     # all incremental snapshots until we hit a full snapshot are expected
     expected = [
-        "z3_get {}pool/fs@snap_1_f | pigz -d | zfs recv pool/fs@snap_1_f",
-        "z3_get {}pool/fs@snap_2 | zfs recv pool/fs@snap_2",
-        "z3_get {}pool/fs@snap_3 | zfs recv pool/fs@snap_3",
+        "zfs3backup_get {}pool/fs@snap_1_f | pigz -d | zfs recv pool/fs@snap_1_f",
+        "zfs3backup_get {}pool/fs@snap_2 | zfs recv pool/fs@snap_2",
+        "zfs3backup_get {}pool/fs@snap_3 | zfs recv pool/fs@snap_3",
     ]
     expected = [e.format(FakeBucket.rand_prefix) for e in expected]
     assert fake_cmd._called_commands == expected
@@ -438,7 +438,7 @@ def test_restore_incremental(s3_manager):
     pair_manager.restore('pool/fs@snap_3')  # ask for an incremental snapshot
     # all incremental snapshots until we hit a full snapshot are expected
     expected = [
-        "z3_get {}pool/fs@snap_3 | zfs recv pool/fs@snap_3",
+        "zfs3backup_get {}pool/fs@snap_3 | zfs recv pool/fs@snap_3",
     ]
     expected = [e.format(FakeBucket.rand_prefix) for e in expected]
     assert fake_cmd._called_commands == expected
@@ -487,7 +487,7 @@ def test_restore_force(s3_manager):
     pair_manager.restore('pool/fs@snap_3', force=True)  # ask for an incremental snapshot
     # all incremental snapshots until we hit a full snapshot are expected
     expected = [
-        "z3_get {}pool/fs@snap_3 | zfs recv -F pool/fs@snap_3",
+        "zfs3backup_get {}pool/fs@snap_3 | zfs recv -F pool/fs@snap_3",
     ]
     expected = [e.format(FakeBucket.rand_prefix) for e in expected]
     assert fake_cmd._called_commands == expected

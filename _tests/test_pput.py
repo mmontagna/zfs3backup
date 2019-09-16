@@ -7,10 +7,10 @@ import hashlib
 import boto
 import pytest
 
-from z3.pput import (UploadSupervisor, UploadWorker, StreamHandler,
+from zfs3backup.pput import (UploadSupervisor, UploadWorker, StreamHandler,
                      Result, WorkerCrashed, multipart_etag, parse_metadata,
                      retry, UploadException)
-from z3.config import get_config
+from zfs3backup.config import get_config
 
 
 cfg = get_config()
@@ -185,7 +185,7 @@ def test_integration(sample_data):
     stream_handler = StreamHandler(sample_data)
     bucket = boto.connect_s3(
         cfg['S3_KEY_ID'], cfg['S3_SECRET']).get_bucket(cfg['BUCKET'])
-    key_name = "z3_test_" + datetime.now().strftime("%Y%m%d_%H-%M-%S")
+    key_name = "zfs3backup_test_" + datetime.now().strftime("%Y%m%d_%H-%M-%S")
     sup = UploadSupervisor(
         stream_handler,
         key_name,

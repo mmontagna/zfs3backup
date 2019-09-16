@@ -1,1 +1,1 @@
-include LICENSE README.md z3/z3.conf
+include LICENSE README.md zfs3backup/zfs3backup.conf
