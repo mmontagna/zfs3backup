@@ -2,13 +2,13 @@ import argparse
 import sys
 
 import boto.s3
+import boto3
 
 from zfs3backup.config import get_config
 
 
 def download(bucket, name):
-    key = bucket.get_key(name)
-    key.get_contents_to_file(sys.stdout)
+    bucket.download_fileobj(name, sys.stdout)
 
 
 def main():
@@ -18,12 +18,10 @@ def main():
     )
     parser.add_argument('name', help='name of S3 key')
     args = parser.parse_args()
-    extra_config = {}
-    if 'HOST' in cfg:
-        extra_config['host'] = cfg['HOST']
-    bucket = boto.connect_s3(
-        cfg['S3_KEY_ID'],
-        cfg['S3_SECRET'], **extra_config).get_bucket(cfg['BUCKET'])
+
+    s3 = boto3.resource('s3')
+    bucket = s3.Bucket(cfg['BUCKET'])
+
     download(bucket, args.name)
 
 if __name__ == '__main__':
