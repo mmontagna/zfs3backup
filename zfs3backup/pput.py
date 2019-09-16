@@ -9,6 +9,7 @@ from cStringIO import StringIO
 from collections import namedtuple
 from threading import Thread
 import argparse
+import base64
 import binascii
 import functools
 import hashlib
@@ -17,17 +18,19 @@ import json
 import os
 import sys
 
-import boto.s3.multipart
+import boto3
+
 
 from zfs3backup.config import get_config
 
 
-Result = namedtuple('Result', ['success', 'traceback', 'index', 'md5'])
+Result = namedtuple('Result', ['success', 'traceback', 'index', 'md5', 'etag'])
 CFG = get_config()
 VERB_QUIET = 0
 VERB_NORMAL = 1
 VERB_PROGRESS = 2
 
+s3 = boto3.resource('s3')
 
 def multipart_etag(digests):
     """
@@ -119,11 +122,21 @@ class UploadWorker(object):
 
     @retry()
     def upload_part(self, index, chunk):
-        part = boto.s3.multipart.MultiPartUpload(self.bucket)
-        part.id = self.multipart.id
-        part.key_name = self.multipart.key_name
-        return part.upload_part_from_file(
-            StringIO(chunk), index, replace=True).md5
+        md5 = hashlib.md5(chunk)
+        part = s3.MultipartUploadPart(
+            self.multipart.bucket_name,
+            self.multipart.object_key,
+            self.multipart.id,
+            index
+            )
+        response = part.upload(
+            Body = chunk,
+            ContentMD5 = base64.b64encode(md5.digest())
+            )
+        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
+            raise UploadException(response['ResponseMetadata'])
+        print(response)
+        return md5.hexdigest(), response[u'ETag']
 
     def start(self):
         self._thread = Thread(target=self.main_loop)
@@ -137,13 +150,14 @@ class UploadWorker(object):
     def main_loop(self):
         while True:
             index, chunk = self.inbox.get()
-            md5 = self.upload_part(index, chunk)
+            md5, etag = self.upload_part(index, chunk)
             # print "worker loop i:{} md5:{}".format(index, md5)
             self.outbox.put(Result(
                 success=True,
                 md5=md5,
                 traceback=None,
                 index=index,
+                etag=etag
             ))
 
 
@@ -185,18 +199,23 @@ class UploadSupervisor(object):
     def _begin_upload(self):
         if self.multipart is not None:
             raise AssertionError("multipart upload already started")
-        headers = {
-            "x-amz-acl": "bucket-owner-full-control",
-        }
-        if self._headers:
-            headers.update(self._headers)
-        self.multipart = self.bucket.initiate_multipart_upload(self.name, headers=headers)
+
+        obj = self.bucket.Object(self.name)
+        self.multipart = obj.initiate_multipart_upload(
+            ACL="bucket-owner-full-control",
+            **self._headers
+            )
 
     def _finish_upload(self):
         if len(self.results) == 0:
             self.multipart.cancel_upload()
             raise UploadException("Error: Can't upload zero bytes!")
-        return self.multipart.complete_upload()
+        print self.results
+        return self.multipart.complete(
+                MultipartUpload={
+                    'Parts': sorted([{'PartNumber': r[0], 'ETag': r[2]} for r in self.results], key = lambda x: x['PartNumber'])
+                }
+            )
 
     def _handle_result(self):
         """Process one result. Block untill one is available
@@ -205,7 +224,7 @@ class UploadSupervisor(object):
         if result.success:
             if self._verbosity >= VERB_PROGRESS:
                 sys.stderr.write("\nuploaded chunk {} \n".format(result.index))
-            self.results.append((result.index, result.md5))
+            self.results.append((result.index, result.md5, result.etag))
             self._pending_chunks -= 1
         else:
             raise result.traceback
@@ -328,17 +347,12 @@ def main():
         chunk_size = parse_size(args.chunk_size)
     stream_handler = StreamHandler(input_fd, chunk_size=chunk_size)
 
-    extra_config = {}
-    if 'HOST' in CFG:
-        extra_config['host'] = CFG['HOST']
-
-    bucket = boto.connect_s3(
-        CFG['S3_KEY_ID'], CFG['S3_SECRET'], **extra_config).get_bucket(CFG['BUCKET'])
+    bucket = s3.Bucket(CFG['BUCKET'])
 
     # verbosity: 0 totally silent, 1 default, 2 show progress
     verbosity = 0 if args.quiet else 1 + int(args.progress)
     headers = parse_metadata(args.metadata)
-    headers["x-amz-storage-class"] = args.storage_class
+    headers["StorageClass"] = args.storage_class
     sup = UploadSupervisor(
         stream_handler,
         args.name,
