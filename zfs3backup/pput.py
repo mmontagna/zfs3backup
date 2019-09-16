@@ -135,7 +135,6 @@ class UploadWorker(object):
             )
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise UploadException(response['ResponseMetadata'])
-        print(response)
         return md5.hexdigest(), response[u'ETag']
 
     def start(self):
@@ -179,7 +178,8 @@ class UploadSupervisor(object):
         self._pending_chunks = 0
         self._verbosity = verbosity
         self._workers = None
-        self._headers = headers
+        self._headers = {} if headers is None else headers
+        self.obj = None
 
     def _start_workers(self, concurrency, worker_class):
         work_queue = Queue(maxsize=concurrency)
@@ -200,20 +200,20 @@ class UploadSupervisor(object):
         if self.multipart is not None:
             raise AssertionError("multipart upload already started")
 
-        obj = self.bucket.Object(self.name)
-        self.multipart = obj.initiate_multipart_upload(
+        self.obj = self.bucket.Object(self.name)
+        self.multipart = self.obj.initiate_multipart_upload(
             ACL="bucket-owner-full-control",
             **self._headers
             )
 
     def _finish_upload(self):
         if len(self.results) == 0:
-            self.multipart.cancel_upload()
+            self.multipart.abort()
             raise UploadException("Error: Can't upload zero bytes!")
         print self.results
         return self.multipart.complete(
                 MultipartUpload={
-                    'Parts': sorted([{'PartNumber': r[0], 'ETag': r[2]} for r in self.results], key = lambda x: x['PartNumber'])
+                    'Parts': sorted([{'PartNumber': r[0], 'ETag': r[2]} for r in self.results])
                 }
             )
 

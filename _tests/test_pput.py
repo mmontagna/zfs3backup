@@ -83,11 +83,11 @@ def test_handle_results():
     sup = UploadSupervisor(None, None, None)
     sup.inbox = Queue()
     sup._pending_chunks = 3
-    sup.inbox.put(Result(success=True, traceback=None, index=1, md5='a'))
-    sup.inbox.put(Result(success=True, traceback=None, index=3, md5='c'))
-    sup.inbox.put(Result(success=True, traceback=None, index=2, md5='b'))
+    sup.inbox.put(Result(success=True, traceback=None, index=1, md5='a', etag='etag1'))
+    sup.inbox.put(Result(success=True, traceback=None, index=3, md5='c', etag='etag3'))
+    sup.inbox.put(Result(success=True, traceback=None, index=2, md5='b', etag='etag2'))
     sup._handle_results()
-    assert sorted(sup.results) == [(1, 'a'), (2, 'b'), (3, 'c')]
+    assert sorted(sup.results) == [(1, 'a', 'etag1'), (2, 'b', 'etag2'), (3, 'c', 'etag3')]
     assert sup._pending_chunks == 0
 
 
@@ -99,12 +99,12 @@ class FakeMultipart(object):
         self._completed = False
         self._canceled = False
 
-    def complete_upload(self):
+    def complete(self, **kwargs):
         if self._completed:
             raise AssertionError('multipart already completed')
         self._completed = True
 
-    def cancel_upload(self):
+    def abort(self):
         if self._canceled:
             raise AssertionError('multipart already canceled')
         self._canceled = True
@@ -118,10 +118,23 @@ class FakeBucket(object):
         self._multipart = FakeMultipart(name)
         return self._multipart
 
+    def Object(self, name):
+        return FakeObject(self,name)
+
+
+class FakeObject(object):
+    def __init__(self, bucket, name):
+        self.name = name
+        self.bucket = bucket
+
+    def initiate_multipart_upload(self, **kwargs):
+        self._multipart = FakeMultipart(self.name)
+        return self._multipart
+
 
 class DummyWorker(UploadWorker):
     def upload_part(self, index, chunk):
-        return hashlib.md5(chunk).hexdigest()
+        return hashlib.md5(chunk).hexdigest(), 'etag-{}'.format(index)
 
 
 def test_supervisor_loop(sample_data):
@@ -130,7 +143,7 @@ def test_supervisor_loop(sample_data):
     sup = UploadSupervisor(stream_handler, 'test', bucket=bucket)
     etag = sup.main_loop(worker_class=DummyWorker)
     assert etag == '"d229c1fc0e509475afe56426c89d2724-2"'
-    assert bucket._multipart._completed
+    assert sup.obj._multipart._completed
 
 
 def test_zero_data(sample_data):
@@ -139,7 +152,7 @@ def test_zero_data(sample_data):
     sup = UploadSupervisor(stream_handler, 'test', bucket=bucket)
     with pytest.raises(UploadException):
         sup.main_loop(worker_class=DummyWorker)
-    assert bucket._multipart._canceled is True
+    assert sup.obj._multipart._canceled is True
 
 
 class ErrorWorker(UploadWorker):
