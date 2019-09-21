@@ -282,7 +282,7 @@ def parse_metadata(metadata):
             sys.stderr.write(
                 "malformed metadata '{}'; should be key=value\n".format(meta))
             sys.exit(1)
-        headers['x-amz-meta-' + key] = val
+        headers[key] = val
     return headers
 
 

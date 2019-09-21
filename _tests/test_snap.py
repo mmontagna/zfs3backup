@@ -7,7 +7,7 @@ import sys
 import random
 import os.path
 
-import boto
+import boto3
 import pytest
 
 from zfs3backup.config import get_config
@@ -36,7 +36,7 @@ class FakeBucket(object):
 
     def list(self, *a, **kwa):
         # boto bucket.list gives you keys without metadata, let's emulate that
-        result = [FakeObject(self, os.path.join(self.rand_prefix, name)) for name, metadata in self.fake_data.items()]
+        result = [FakeObjectSummary(self, os.path.join(self.rand_prefix, name)) for name, metadata in self.fake_data.items()]
         return result
 
 
@@ -49,6 +49,20 @@ class FakeBucket(object):
         return FakeObjects(self)
 
 class FakeObject(object):
+    def __init__(self, bucket, name, metadata=None):
+        self.name = name
+        self.metadata = metadata
+        self.bucket = bucket
+        self.content_length = 1234
+
+    @property
+    def key(self):
+        return self.name
+    @property
+    def size(self):
+        raise Exception("MARK")
+
+class FakeObjectSummary(object):
     def __init__(self, bucket, name, metadata=None):
         self.name = name
         self.metadata = metadata
@@ -73,12 +87,10 @@ def write_s3_data():
     Allows running the same tests against fakes and the boto api.
     """
     cfg = get_config()
-    bucket = boto.connect_s3(
-        cfg['S3_KEY_ID'], cfg['S3_SECRET']).get_bucket(cfg['BUCKET'])
+    bucket = boto3.resource('s3').Bucket(cfg['BUCKET'])
     for name, metadata in FakeBucket.fake_data.iteritems():
-        key = bucket.new_key(os.path.join(FakeBucket.rand_prefix, name))
-        headers = {("x-amz-meta-" + k): v for k, v in metadata.iteritems()}
-        key.set_contents_from_string("spam", headers=headers)
+        key = bucket.Object(os.path.join(FakeBucket.rand_prefix, name))
+        key.put(Body="spam", Metadata=metadata)
     return bucket
 
 

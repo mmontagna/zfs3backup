@@ -141,7 +141,7 @@ class S3SnapshotManager(object):
         for key in self.bucket.objects.filter(Prefix=prefix):
             key = self.bucket.Object(key.key)
             name = key.key[strip_chars:]
-            snapshots[name] = S3Snapshot(name, metadata=key.metadata, manager=self, size=key.size)
+            snapshots[name] = S3Snapshot(name, metadata=key.metadata, manager=self, size=key.content_length)
         return snapshots
 
     def list(self):

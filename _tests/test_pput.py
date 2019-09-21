@@ -4,7 +4,7 @@ from Queue import Queue
 from uuid import uuid4
 import hashlib
 
-import boto
+import boto3
 import pytest
 
 from zfs3backup.pput import (UploadSupervisor, UploadWorker, StreamHandler,
@@ -196,17 +196,16 @@ def test_retry_decorator():
 def test_integration(sample_data):
     cfg = get_config()
     stream_handler = StreamHandler(sample_data)
-    bucket = boto.connect_s3(
-        cfg['S3_KEY_ID'], cfg['S3_SECRET']).get_bucket(cfg['BUCKET'])
+    bucket = boto3.resource('s3').Bucket(cfg['BUCKET'])
     key_name = "zfs3backup_test_" + datetime.now().strftime("%Y%m%d_%H-%M-%S")
     sup = UploadSupervisor(
         stream_handler,
         key_name,
         bucket=bucket,
-        headers=parse_metadata(["ana=are+mere", "dana=are=pere"])
+        metadata=parse_metadata(["ana=are+mere", "dana=are=pere"])
     )
     etag = sup.main_loop()
-    uploaded = bucket.get_key(key_name)
+    uploaded = bucket.Object(key_name)
     assert etag == '"d229c1fc0e509475afe56426c89d2724-2"'
-    assert etag == uploaded.etag
+    assert etag == uploaded.e_tag
     assert uploaded.metadata == {"ana": "are+mere", "dana": "are=pere"}
