@@ -410,6 +410,7 @@ class PairManager(object):
         while True:
             z_snap = self.zfs_manager.get(current_snap.name)
             if z_snap is not None:
+                print("Snapshot already exists locally. If you'd like to rollback to it you can run 'zfs rollback {}'".format(current_snap.name))
                 break
             if not current_snap.is_healthy:
                 raise IntegrityError(
