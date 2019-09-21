@@ -167,7 +167,7 @@ class UploadException(Exception):
 class UploadSupervisor(object):
     '''Reads chunks and dispatches them to UploadWorkers'''
 
-    def __init__(self, stream_handler, name, bucket, headers=None, verbosity=1):
+    def __init__(self, stream_handler, name, bucket, headers=None, metadata=None, verbosity=1):
         self.stream_handler = stream_handler
         self.name = name
         self.bucket = bucket
@@ -179,6 +179,7 @@ class UploadSupervisor(object):
         self._verbosity = verbosity
         self._workers = None
         self._headers = {} if headers is None else headers
+        self._metadata = {} if metadata is None else metadata
         self.obj = None
 
     def _start_workers(self, concurrency, worker_class):
@@ -203,6 +204,7 @@ class UploadSupervisor(object):
         self.obj = self.bucket.Object(self.name)
         self.multipart = self.obj.initiate_multipart_upload(
             ACL="bucket-owner-full-control",
+            Metadata=self._metadata,
             **self._headers
             )
 
@@ -351,7 +353,8 @@ def main():
 
     # verbosity: 0 totally silent, 1 default, 2 show progress
     verbosity = 0 if args.quiet else 1 + int(args.progress)
-    headers = parse_metadata(args.metadata)
+    metadata = parse_metadata(args.metadata)
+    headers = {}
     headers["StorageClass"] = args.storage_class
     sup = UploadSupervisor(
         stream_handler,
@@ -359,6 +362,7 @@ def main():
         bucket=bucket,
         verbosity=verbosity,
         headers=headers,
+        metadata=metadata
     )
     if verbosity >= VERB_NORMAL:
         sys.stderr.write("starting upload to {}/{} with chunksize {}M using {} workers\n".format(
