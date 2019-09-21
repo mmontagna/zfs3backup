@@ -159,7 +159,7 @@ class ErrorWorker(UploadWorker):
     def upload_part(self, index, chunk):
         if index == 2:
             raise Exception("Testing worker crash")
-        return hashlib.md5(chunk).hexdigest()
+        return hashlib.md5(chunk).hexdigest(), 'etag-{}'.format(index)
 
 
 def test_supervisor_loop_with_worker_crash(sample_data):
