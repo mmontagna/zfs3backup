@@ -21,14 +21,6 @@ GIGA = 1024 ** 3
 TERA = 1024 ** 4
 
 
-class FakeKey(object):
-    def __init__(self, name, metadata=None):
-        self.name = name
-        self.key = name
-        self.metadata = metadata
-        self.size = 1234
-
-
 class FakeBucket(object):
     rand_prefix = 'test-' + ''.join([random.choice(string.ascii_letters) for _ in xrange(8)]) + '/'
     fake_data = {
@@ -44,13 +36,36 @@ class FakeBucket(object):
 
     def list(self, *a, **kwa):
         # boto bucket.list gives you keys without metadata, let's emulate that
-        return (FakeKey(os.path.join(self.rand_prefix, name)) for name in self.fake_data.iterkeys())
+        result = [FakeObject(self, os.path.join(self.rand_prefix, name)) for name, metadata in self.fake_data.items()]
+        return result
 
-    def get_key(self, key):
-        name = key[len(self.rand_prefix):]
-        return FakeKey(
-            name=key,
-            metadata=self.fake_data[name])
+
+    def Object(self, name):
+        key_suffix = name[len(self.rand_prefix):]
+        return FakeObject(self, name, self.fake_data.get(key_suffix, {}))
+
+    @property
+    def objects(self):
+        return FakeObjects(self)
+
+class FakeObject(object):
+    def __init__(self, bucket, name, metadata=None):
+        self.name = name
+        self.metadata = metadata
+        self.bucket = bucket
+        self.size = 1234
+
+    @property
+    def key(self):
+        return self.name
+
+
+class FakeObjects(object):
+    def __init__(self, bucket):
+        self.bucket = bucket
+
+    def filter(self, *a, **kwa):
+        return self.bucket.list(*a, **kwa)
 
 
 def write_s3_data():

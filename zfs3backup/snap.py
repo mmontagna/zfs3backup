@@ -9,7 +9,7 @@ import subprocess
 import sys
 from collections import OrderedDict
 
-import boto
+import boto3
 
 from zfs3backup.config import get_config
 
@@ -138,8 +138,8 @@ class S3SnapshotManager(object):
         prefix = os.path.join(self.s3_prefix, self.snapshot_prefix)
         snapshots = {}
         strip_chars = len(self.s3_prefix)
-        for key in self.bucket.list(prefix):
-            key = self.bucket.get_key(key.key)
+        for key in self.bucket.objects.filter(Prefix=prefix):
+            key = self.bucket.Object(key.key)
             name = key.key[strip_chars:]
             snapshots[name] = S3Snapshot(name, metadata=key.metadata, manager=self, size=key.size)
         return snapshots
@@ -575,16 +575,13 @@ def main():
     args = parse_args()
 
     try:
-        s3_key_id, s3_secret, bucket = cfg['S3_KEY_ID'], cfg['S3_SECRET'], cfg['BUCKET']
+        bucket = cfg['BUCKET']
 
-        extra_config = {}
-        if 'HOST' in cfg:
-            extra_config['host'] = cfg['HOST']
     except KeyError as err:
         sys.stderr.write("Configuration error! {} is not set.\n".format(err))
         sys.exit(1)
-
-    bucket = boto.connect_s3(s3_key_id, s3_secret, **extra_config).get_bucket(bucket)
+    s3 = boto3.resource('s3')
+    bucket = s3.Bucket(bucket)
 
     fs_section = "fs:{}".format(args.filesystem)
     if args.snapshot_prefix is None:
