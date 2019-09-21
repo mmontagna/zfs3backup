@@ -53,7 +53,8 @@ def get_config():
         _config = ConfigParser.ConfigParser()
         default = os.path.join(zfs3backup.__path__[0], "zfs3backup.conf")
         _config.read(default)
-        _config.read("/etc/zfs3backup_backup/zfs3backup.conf")
+        if os.environ.get('SKIP_CONFIG_FILE', 'false').lower() != 'true':
+            _config.read("/etc/zfs3backup_backup/zfs3backup.conf")
         layers = [
             os.environ,  # env variables take precedence
             dict((k.upper(), v) for k, v in _config.items("main")),

@@ -1,6 +1,7 @@
 #!/bin/sh
 
 FLAGS=""
+export SKIP_CONFIG_FILE=true
 
 if [ -n "$S3_KEY_ID" ]; then
     py.test
