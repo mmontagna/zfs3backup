@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="zfs3backup",
-    version="0.0.0",
+    version="0.1.0",
     platforms='any',
     packages=find_packages(),
     include_package_data=True,
