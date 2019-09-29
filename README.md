@@ -22,7 +22,7 @@ See `zfs SUBCOMMAND --help` for more info.
 ### Installing
 `pip install zfs3backup`
 
-zfs3backup is tested on python 2.7 with latest boto 2 and boto 2.2.2 (python-boto version on Ubuntu 12.04).
+zfs3backup is tested on python 2.7.
 
 #### Optional dependencies
 ```

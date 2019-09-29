@@ -7,7 +7,7 @@ setup(
     platforms='any',
     packages=find_packages(),
     include_package_data=True,
-    install_requires=["boto", "boto3"],
+    install_requires=["boto3"],
     author="Marco Montagna",
     author_email="marcojoemontagna@gmail.com",
     url="https://github.com/mmontagna/zfs3backup",
