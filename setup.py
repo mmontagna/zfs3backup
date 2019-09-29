@@ -1,9 +1,14 @@
+import os
 from setuptools import setup, find_packages
+
+dir_path = os.path.dirname(os.path.realpath(__file__))
+
+VERSION = open(os.path.join(dir_path, 'VERSION')).read()
 
 
 setup(
     name="zfs3backup",
-    version="0.1.0",
+    version=VERSION,
     platforms='any',
     packages=find_packages(),
     include_package_data=True,
