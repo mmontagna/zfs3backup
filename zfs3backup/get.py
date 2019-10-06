@@ -1,7 +1,6 @@
 import argparse
 import sys
 
-import boto.s3
 import boto3
 
 from zfs3backup.config import get_config
