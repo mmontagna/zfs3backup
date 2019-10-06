@@ -212,10 +212,13 @@ class UploadSupervisor(object):
         if len(self.results) == 0:
             self.multipart.abort()
             raise UploadException("Error: Can't upload zero bytes!")
-        print self.results
+        sorted_results = sorted(
+            [{'PartNumber': r[0], 'ETag': r[2]} for r in self.results],
+            key = lambda x: x['PartNumber']
+            )
         return self.multipart.complete(
                 MultipartUpload={
-                    'Parts': sorted([{'PartNumber': r[0], 'ETag': r[2]} for r in self.results])
+                    'Parts': sorted_results
                 }
             )
 
