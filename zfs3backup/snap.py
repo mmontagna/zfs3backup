@@ -173,6 +173,19 @@ class ZFSSnapshotManager(object):
             ['zfs', 'list', '-Ht', 'snap', '-o',
              'name,used,refer,mountpoint,written'])
 
+    def datasets(self):
+        datasets = subprocess.check_output(['zfs', 'list'])
+        datasets = datasets.split('\n')
+        dataset_dicts = []
+        header = [x.lower() for x in datasets[0].split(' ') if x]
+        for dataset in filter(lambda x: x, datasets[1:]):
+            dataset = [x for x in dataset.split(' ') if x]
+            dataset_dicts.append(dict(zip(header, dataset)))
+        return dataset_dicts
+
+    def dataset_exists(self, dataset):
+        return dataset in [x['name'] for x in self.datasets()]
+
     def _parse_snapshots(self):
         """Returns all snapshots grouped by filesystem, a dict of OrderedDict's
         The order of snapshots matters when determining parents for incremental send,
@@ -403,6 +416,10 @@ class PairManager(object):
         return uploaded_meta
 
     def restore(self, snap_name, dry_run=False, force=False):
+        dataset, snapshot_tag = snap_name.split('@')
+        if not force and self.zfs_manager.dataset_exists(dataset):
+            print("The dataset {} already exists locally if you'd like to overwrite it specify --force'".format(dataset))
+            return
         current_snap = self.s3_manager.get(snap_name)
         if current_snap is None:
             raise Exception('no such snapshot "{}"'.format(snap_name))
