@@ -37,7 +37,6 @@ apt-get install pigz
 Most options can be configured as command line flags, environment variables or in a config file,
 in that order of precedence.
 The config file is read from `/etc/zfs3backup_backup/zfs3backup.conf` if it exists, some defaults are provided by the tool.
-BUCKET `S3_KEY_ID` and `S3_SECRET` can't be provided on the command line.
 For a list of all options see `zfs3backup/sample.conf`.
 
 You'll usually want zfs3backup to only backup certain snapshots (hourly/daily/weekly).
@@ -52,6 +51,10 @@ COMPRESSOR=pigz4
 [fs:tank/ham]
 SNAPSHOT_PREFIX=weekly-non-spam
 ```
+
+#### S3 Credentials
+
+This package uses boto3's standard credential chain for s3 credentials see: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html
 
 ### Dataset Size, Concurrency and Memory Usage
 Since the data is streamed from `zfs send` it gets read in to memory in chunks.
